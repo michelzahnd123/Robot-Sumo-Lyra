@@ -4,29 +4,27 @@
 //  -------------------------------------------------------
 
 /* liste de courses
-  non inversion des pins capteurs POLOLU avec filtre MC14490
   inversion des pins CNY70 (MC14490 non inverseur)
   inversion des boutons bGO et tON (MC14490 non inverseur)
   définir REACTION si ligne blanche ARRIERE : ligne 180 
-  mise à jour du référentiel (repository) GitHub
+  mesurer le temps réel de traitement interruption -> suppression ?
 */
 
 
 
-// 24/8/2023 - essai : git remote set-url origin https://github.com/
-
-
-
+// 24/8/2023 - GitHub remote https://github.com/michelzahnd123/Robot-Sumo-Lyra
+//             non inversion des pins capteurs POLOLU avec filtre MC14490
 // 22/8/2023 - réaffectation des pins /nouveau PCB - inversion des pins moteurs (PCB moteur)
-//             suppression du capteur presence-R inexistant
+//             suppression : capteur presence AR, capteurs TOF, librairie AdaFruit
 //             création du capteur YR (CNY70 arrière : pin 18) 
-// 9/8/2023  - LYRA : création du programme à partir de DAEMON-2023-V3
+// 9/8/2023  - LYRA : création du programme & séparation de DAEMON-2023-V3 (IOREK)
+
 // 11/7/2023 - IOREK : fin 1ère seconde -> limite tout_avant 3*duree 1ère seconde vitesse M6
 //             Démontage de LYRA et reconstruction au Club Robor de St Sébastien s/ Loire
 // 10/6/2023 - concours THIONVILLE (version 3) : 19 gagnés - 8 nuls - 14 perdus
 //             combats LYRA<>IOREK - IOREK gagne -> démontage de LYRA
 //             pb : sort tout seul (12fois) - arrêt subit (6fois) - survitesse avec charge LiPo
-// 8/6/2023 -  TEST : 1 mètre (65cm/s)
+// 8/6/2023 -  TEST : 1 mètre (65cm/s en vitesse M3)
 //             charge des robots : 11.8V (maxi lisible par diviseur de tension)
 //             +--------------------------------------------------------------------------+
 // last day ...!   ligne 205 -> durée de combat pour compétition : 60sec                  !
@@ -1158,9 +1156,8 @@ if(alertePresence==true){
       SensEtDeplacement(SUR_PLACE_GAUCHE,vitesseM4,vitesseM6);
       delay(duree1SecondeAvantGauche);
       break;}
-  //SensEtDeplacement(TOUT_AVANT,vitesseM6,vitesseM6);     // redresse le mouvement 1ère seconde
-  //delay(3*duree1SecondeAvant);
-  PresenceLoinPres(true);                                  // vérifie si on le retrouve à l'AVANT
+    
+  PresenceLoinPres(true);                        // vérifie si on le retrouve à l'AVANT
   if(directionAdversaire==AVANT){
     SensEtDeplacement(TOUT_AVANT,vitesseM7,vitesseM7);
     delay(duree1SecondeAvant);}
@@ -1172,7 +1169,7 @@ if(alertePresence==true){
  // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 */
 // BOUCLE de COMBAT
-// ********** boucle 5 ms *************************************************************************
+// ********** boucle 3 ms *************************************************************************
 
 cptPoint=0; cptExploration=0;
 alternance=int(topDepartCombat/1000)%2;          // rotation libre -> 1 : Gauche - 0 : Droite
