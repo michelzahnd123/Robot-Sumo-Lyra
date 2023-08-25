@@ -6,12 +6,12 @@
 /* liste de courses
   inversion des pins CNY70 (MC14490 non inverseur)
   inversion des boutons bGO et tON (MC14490 non inverseur)
-  définir REACTION si ligne blanche ARRIERE : ligne 180 
   mesurer le temps réel de traitement interruption -> suppression ?
 */
 
 
 
+// 25/8/2023 - REACTION si ligne blanche ARRIERE verifie_noirblanc(), reactionLigneBlanche()
 // 24/8/2023 - GitHub remote https://github.com/michelzahnd123/Robot-Sumo-Lyra
 //             non inversion des pins capteurs POLOLU avec filtre MC14490
 // 22/8/2023 - réaffectation des pins /nouveau PCB - inversion des pins moteurs (PCB moteur)
@@ -180,12 +180,13 @@ volatile bool alerteNoirBlancDroite;
 volatile bool alerteNoirBlancDerriere;
 volatile long debutNoirBlancGauche, debutNoirBlancDroite, debutNoirBlancDerriere;
 // réaction Noir & Blanc
-// **************************** completer alerteNoirBlancDerriere ********************************
 volatile bool reactionLigneBlanche, finReactionLigneBlanche;
 volatile bool reactionBlancGauche, reactionBlancDroite, reactionBlancDevant;
 volatile bool finReactionBlancGauche, finReactionBlancDroite, finReactionBlancDevant;
+volatile bool reactionBlancDerriere, finReactionBlancDerriere;
 volatile long topEsquiveBlancGauche, tempsEsquiveBlancGauche;
 volatile long topEsquiveBlancDroite, tempsEsquiveBlancDroite;
+volatile long topEsquiveBlancDerriere, tempsEsquiveBlancDerriere;
 volatile long topAvantBlanc, tempsAvantBlanc;
 volatile int memoireLigneBlanche;
 
@@ -437,20 +438,26 @@ void setup()
 // Noir Blanc
   cny70G.setPinNoirBlanc(pin_cny70G);
   cny70D.setPinNoirBlanc(pin_cny70D);
+  cny70R.setPinNoirBlanc(pin_cny70R);
   alerteNoirBlancGauche=true;                    // false
   alerteNoirBlancDroite=true;                    // false
+  alerteNoirBlancDerriere=true;                  // false
   reactionLigneBlanche=false;
   reactionBlancGauche=false;
   reactionBlancDroite=false;
   reactionBlancDevant=false;
+  reactionBlancDerriere=false;
   finReactionLigneBlanche=false;
   finReactionBlancGauche=false;
   finReactionBlancDroite=false;
   finReactionBlancDevant=false;
+  finReactionBlancDerriere=false;
   debutNoirBlancGauche=0;
   debutNoirBlancDroite=0;
+  debutNoirBlancDerriere=0;
   topEsquiveBlancGauche=0;
   topEsquiveBlancDroite=0;
+  topEsquiveBlancDerriere=0;
   topAvantBlanc=0;
   memoireLigneBlanche=0;
 
@@ -558,7 +565,7 @@ pinMode(pin_JS40F_AG, INPUT);
   nbDisparitionA=0;nbDisparitionAD=0;nbDisparitionD=0;nbDisparitionRD=0;
   nbDisparitionRG=0;nbDisparitionG=0;nbDisparitionAG=0;
 
-// REACTION blocage - ligne blanche
+// REACTION : blocage - ligne blanche
   dureeReactionBlocage=dureeReactionBlocageRef*tensionReactionRef/tensionLiPoMesuree;
   Serial.print("duree Reaction Blocage : ");Serial.println(dureeReactionBlocage);
   dureeEsquiveBlanc=dureeEsquiveBlancRef*tensionReactionRef/tensionLiPoMesuree;
@@ -602,6 +609,7 @@ return alerteTension;
 bool verifie_noir_blanc()
 // Timer avec rémanence Noir & Blanc (2 ms)
 // Double lecture (250 us) définie dans l'objet NoirBlanc
+// CNY70 : gauche, droite ou arrière
 // alerte=true si contact ligne blanche
 {
 if((millis()-debutNoirBlancGauche)>=remanenceNoirBlanc){
@@ -614,13 +622,18 @@ if((millis()-debutNoirBlancDroite)>=remanenceNoirBlanc){
   if(alerteNoirBlancDroite==true){
     debutNoirBlancDroite=millis();}
     }
-return alerteNoirBlancGauche||alerteNoirBlancDroite;
+if((millis()-debutNoirBlancDerriere)>=remanenceNoirBlanc){
+  alerteNoirBlancDerriere=cny70R.getEtatNoirBlanc();
+  if(alerteNoirBlancDerriere==true){
+    debutNoirBlancDerriere=millis();}
+    }
+return alerteNoirBlancGauche||alerteNoirBlancDroite||alerteNoirBlancDerriere;
 }
 //  -------------------------------------------------------
 void ReactionLigneBlanche() 
 // rémanence du contact ligne blanche G ou D (2 ms)
 // durée de réaction selon la position robot / ligne blanche (250 ms)
-// reactions sont exclusives Avant - Gauche - Droite
+// reactions sont exclusives Avant - Gauche - Droite - Derrière(arrière)
 {
 // ----- debut de réaction -----
   if(verifie_noir_blanc()==true){                          // contact ligne blanche
@@ -631,6 +644,7 @@ void ReactionLigneBlanche()
         finReactionBlancDevant=false;
         reactionBlancGauche=false;
         reactionBlancDroite=false;
+        reactionBlancDerriere=false;
       }}
     if((alerteNoirBlancGauche==true)&&(alerteNoirBlancDroite==false)){
       if(reactionBlancGauche==false){
@@ -639,6 +653,7 @@ void ReactionLigneBlanche()
         finReactionBlancGauche=false;
         reactionBlancDevant=false;
         reactionBlancDroite=false;
+        reactionBlancDerriere=false;
       }}
     if((alerteNoirBlancGauche==false)&&(alerteNoirBlancDroite==true)){
       if(reactionBlancDroite==false){
@@ -646,27 +661,44 @@ void ReactionLigneBlanche()
         reactionBlancDroite=true;
         finReactionBlancDroite=false;
         reactionBlancDevant=false;
-        reactionBlancGauche=false;        
-      }}}
+        reactionBlancGauche=false;
+        reactionBlancDerriere=false;
+      }}
+    if((alerteNoirBlancGauche==false)&&(alerteNoirBlancDroite==false)){
+      if(alerteNoirBlancDerriere==true){
+        if(reactionBlancDerriere==false){
+          topEsquiveBlancDerriere=millis();
+          reactionBlancDerriere=true;
+          finReactionBlancDerriere=false;
+          reactionBlancDevant=false;
+          reactionBlancGauche=false;
+          reactionBlancDroite=false;
+  }}}}
 
 // ----- fin de réaction -----
-  if(reactionBlancDevant==true){                          // réaction cny Gauche & Droite
+  if(reactionBlancDevant==true){                          // réaction CNY Gauche & Droite
     tempsAvantBlanc=millis()-topAvantBlanc;
     if(tempsAvantBlanc>dureeAvantBlanc){
       reactionBlancDevant=false;
       if(finReactionBlancDevant==false){finReactionBlancDevant=true;
       }}}
-  if(reactionBlancGauche==true){                           // réaction cny Gauche
+  if(reactionBlancGauche==true){                           // réaction CNY Gauche
     tempsEsquiveBlancGauche=millis()-topEsquiveBlancGauche;
     if(tempsEsquiveBlancGauche>dureeEsquiveBlanc){
       reactionBlancGauche=false;
       if(finReactionBlancGauche==false){finReactionBlancGauche=true;
       }}}
-  if(reactionBlancDroite==true){                           // réaction cny Droite
+  if(reactionBlancDroite==true){                           // réaction CNY Droite
     tempsEsquiveBlancDroite=millis()-topEsquiveBlancDroite;
     if(tempsEsquiveBlancDroite>dureeEsquiveBlanc){
       reactionBlancDroite=false;
       if(finReactionBlancDroite==false){finReactionBlancDroite=true;
+      }}}
+  if(reactionBlancDerriere==true){                         // réaction CNY Derrière
+    tempsEsquiveBlancDerriere=millis()-topEsquiveBlancDerriere;
+    if(tempsEsquiveBlancDerriere>dureeEsquiveBlanc){
+      reactionBlancDerriere=false;
+      if(finReactionBlancDerriere==false){finReactionBlancDerriere=true;
       }}}
 }
 //  -------------------------------------------------------
@@ -674,13 +706,13 @@ void ReactionLigneBlanche()
 //  -------------------------------------------------------
 void verifie_presence(bool affichageVP)
 /*
-  présence à l'AVANT : JS40F
-  présence à l'AVANT DROITE : RZ60S (30°)
-  présence à DROITE : JS40F
-  présence à l'ARRIERE DROITE : RZ60S (5°)
-  présence à l'ARRIERE GAUCHE : RZ60S (5°)
-  présence à GAUCHE : JS40F
-  présence à l'AVANT GAUCHE : RZ60S (30°)
+  présence à l'AVANT
+  présence à l'AVANT DROITE (30°)
+  présence à DROITE
+  présence à l'ARRIERE DROITE (5°)
+  présence à l'ARRIERE GAUCHE (5°)
+  présence à GAUCHE
+  présence à l'AVANT GAUCHE (30°)
 */
 {
 // ***** capteur actif & actif avec parasite *****
@@ -1183,8 +1215,8 @@ while((signalArretUrgence==false)&&(tempsDeCombat<=dureeTotalCombat)&&(alerteTen
 
 // examen ligne blanche (priorité 1)
   ReactionLigneBlanche();
-  reactionLigneBlanche=reactionBlancGauche||reactionBlancDroite||reactionBlancDevant;
-  finReactionLigneBlanche=finReactionBlancGauche||finReactionBlancDroite||finReactionBlancDevant;
+  reactionLigneBlanche=reactionBlancGauche||reactionBlancDroite||reactionBlancDevant||reactionBlancDerriere;
+  finReactionLigneBlanche=finReactionBlancGauche||finReactionBlancDroite||finReactionBlancDevant||finReactionBlancDerriere;
   //
   if(reactionLigneBlanche==false){               // Sur ZONE NOIRE du DOJO
     if(finReactionLigneBlanche==false){          // cycle normal
@@ -1417,6 +1449,7 @@ while((signalArretUrgence==false)&&(tempsDeCombat<=dureeTotalCombat)&&(alerteTen
       finReactionBlancDevant=false;
       finReactionBlancGauche=false;
       finReactionBlancDroite=false;
+      finReactionBlancDerriere=false;
       }}
   else{                                          // REACTION Ligne Blanche activée
     ilEstDerriere=(!digitalRead(pin_JS40F_RG))||(!digitalRead(pin_JS40F_RD));
@@ -1454,8 +1487,20 @@ while((signalArretUrgence==false)&&(tempsDeCombat<=dureeTotalCombat)&&(alerteTen
         Serial.print(" <D   mvt : ");Serial.print(mouvement);Serial.print(" * ");
         Serial.print(tempsDeCombat);Serial.println(" ms");
         memoireLigneBlanche=mouvement;
-        oldMouvement=mouvement;}
-    }}
+        oldMouvement=mouvement;}}
+    if(reactionBlancDerriere==true){             // ... réaction cny : Derriere (24)
+      mouvement=24;
+      if(mouvement!=oldMouvement){
+        Serial.print(" <D ");
+        //
+        if(adversaireProche==true){SensEtDeplacement(TOUT_AVANT,vitesseM5,vitesseM7);}
+        else{                      SensEtDeplacement(TOUT_AVANT,vitesseM5,vitesseM1);}
+        //
+        Serial.print(" <G   mvt : ");Serial.print(mouvement);Serial.print(" * ");
+        Serial.print(tempsDeCombat);Serial.println(" ms");
+        memoireLigneBlanche=mouvement;
+        oldMouvement=mouvement;}}
+    }
 //
 // ----- fin d'exécution des mouvements
 //
