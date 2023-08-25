@@ -1,7 +1,7 @@
 # Robot-Sumo-Lyra
 Programme de déplacement du robot SUMO -> LYRA 2024
 
-STRUCTURE du ROBOT
+ROBOT AUTONOME
 - 7 capteurs de proximité : POLOLU #2578
 - 3 capteurs de ligne blanche : CNY70
 - batterie LiPo 3S - 650 mAh
