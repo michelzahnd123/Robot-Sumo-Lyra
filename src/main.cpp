@@ -1,12 +1,15 @@
 //  -------------------------------------------------------
-//  --------- programme robot SUMO 2023 -------------------
+//  --------- programme robot SUMO 2024 -------------------
 //  ------------------- LYRA version 1 --------------------
 //  -------------------------------------------------------
 
-/* liste de courses
-  inversion des pins CNY70 (MC14490 non inverseur)
-  inversion des boutons bGO et tON (MC14490 non inverseur)
-  mesurer le temps réel de traitement interruption -> suppression ?
+/* liste de courses : .......
+  inverser l'acquisition des pins CNY70 (MC14490 non inverseur)
+  inverser l'acquisition des boutons bGO et tON (MC14490 non inverseur)
+  mesurer le temps réel de traitement des interruptions (quand MC14490 fonctionnera)
+  créer un objet "Presence" pour les 7 capteurs de présence
+  inventorier tous les paramètres du programme : temps, vitesse, distance, etc ...
+  calibrer les paramètres en fonction de la tension et des moteurs
 */
 
 
@@ -295,7 +298,8 @@ volatile int dureeReactionBlocage;
 // ligne blanche
 #define dureeEsquiveBlancRef 150
 #define dureeAvantBlancRef 225
-volatile int dureeEsquiveBlanc, dureeAvantBlanc;
+#define dureeDerriereBlancRef 250
+volatile int dureeEsquiveBlanc, dureeAvantBlanc, dureeDerriereBlanc;
 
 // homologation
 #define distance1metre 1750
@@ -572,6 +576,8 @@ pinMode(pin_JS40F_AG, INPUT);
   Serial.print("duree Esquive Blanc : ");Serial.println(dureeEsquiveBlanc);
   dureeAvantBlanc=dureeAvantBlancRef*tensionReactionRef/tensionLiPoMesuree;
   Serial.print("duree Avant Blanc : ");Serial.println(dureeAvantBlanc);
+  dureeDerriereBlanc=dureeDerriereBlancRef*tensionReactionRef/tensionLiPoMesuree;
+  Serial.print("duree Derriere Blanc : ");Serial.println(dureeDerriereBlanc);
 }
 
 //  -------------------------------------------------------
@@ -696,7 +702,7 @@ void ReactionLigneBlanche()
       }}}
   if(reactionBlancDerriere==true){                         // réaction CNY Derrière
     tempsEsquiveBlancDerriere=millis()-topEsquiveBlancDerriere;
-    if(tempsEsquiveBlancDerriere>dureeEsquiveBlanc){
+    if(tempsEsquiveBlancDerriere>dureeDerriereBlanc){
       reactionBlancDerriere=false;
       if(finReactionBlancDerriere==false){finReactionBlancDerriere=true;
       }}}
