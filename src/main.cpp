@@ -12,7 +12,7 @@
   calibrer les paramètres en fonction de la tension et des moteurs
 */
 
-
+// 8/9/2023 -  Dépôt DISTANT : GitHub - Dépôt LOCAL : PC ATELIER
 
 // 25/8/2023 - REACTION si ligne blanche ARRIERE verifie_noirblanc(), reactionLigneBlanche()
 // 24/8/2023 - GitHub remote https://github.com/michelzahnd123/Robot-Sumo-Lyra
