@@ -4,16 +4,20 @@
 //  -------------------------------------------------------
 
 /* liste de courses : .......
-  inverser l'acquisition des pins CNY70 (MC14490 non inverseur)
-  inverser l'acquisition des boutons bGO et tON (MC14490 non inverseur)
-  mesurer le temps réel de traitement des interruptions (quand MC14490 fonctionnera)
-  créer un objet "Presence" pour les 7 capteurs de présence
-  inventorier tous les paramètres du programme : temps, vitesse, distance, etc ...
-  calibrer les paramètres en fonction de la tension et des moteurs
+  mesurer le temps réel de traitement des interruptions
+  vérifier la mesure et calcul de tension LiPo avec le nouveau pont diviseur
+  calculer les vitesses en fonction de la tension et des moteurs : L = V * t
+  limiter le temps de déplacement à 1/2 dohyo en vitesse M7
+  calculer le décalage systématique de la vitesse des moteurs, pour aller tout droit
 */
 
-// 8/9/2023 -  Dépôt DISTANT : GitHub - Dépôt LOCAL : PC ATELIER
 
+// 12/9/2023 - désoudage ESP32, PH5 : pin header 5mm sur PCB moteur, ESP : pin mâle 4 mm
+//             inversion acquisition des pins CNY70 (MC14490 non inverseur) dans objet "NoirBlanc"
+//             inversion acquisition des boutons bGO et tON (MC14490 non inverseur) dans objet "Bouton"
+//             inventaire de tous les paramètres du programme : temps, vitesse, distance, etc ...
+
+// 8/9/2023 -  Dépôt DISTANT : GitHub - Dépôt LOCAL : PC ATELIER
 // 25/8/2023 - REACTION si ligne blanche ARRIERE verifie_noirblanc(), reactionLigneBlanche()
 // 24/8/2023 - GitHub remote https://github.com/michelzahnd123/Robot-Sumo-Lyra
 //             non inversion des pins capteurs POLOLU avec filtre MC14490
@@ -23,7 +27,7 @@
 // 9/8/2023  - LYRA : création du programme & séparation de DAEMON-2023-V3 (IOREK)
 
 // 11/7/2023 - IOREK : fin 1ère seconde -> limite tout_avant 3*duree 1ère seconde vitesse M6
-//             Démontage de LYRA et reconstruction au Club Robor de St Sébastien s/ Loire
+//             Démontage de LYRA et reconstruction au Club Robot de St Sébastien s/ Loire
 // 10/6/2023 - concours THIONVILLE (version 3) : 19 gagnés - 8 nuls - 14 perdus
 //             combats LYRA<>IOREK - IOREK gagne -> démontage de LYRA
 //             pb : sort tout seul (12fois) - arrêt subit (6fois) - survitesse avec charge LiPo

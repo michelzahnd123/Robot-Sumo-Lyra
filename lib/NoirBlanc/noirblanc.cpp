@@ -14,10 +14,13 @@ void NoirBlanc::setPinNoirBlanc(int pin_noirblanc){
 }
 
 // entrée valeur "noir=2.7 V" ou "blanc=0.2 V"
-// trigger-inverseur : noir = 0 (tout va bien) et blanc = 1 (alerte)
+// trigger-inverseur : noir = 0 (tout va bien) et blanc = 1 (alerte) ... obsolète !!!
+// remplacement du "trigger-inverseur" par "antirebond" MC14490 (non inverseur) -> return !etatCNY
+// réactivité maxi : ALERTE si 1 seule ou les 2 mesure(s) sont sur la LIGNE BLANCHE
+
 bool NoirBlanc::getEtatNoirBlanc(){              // alerte si BLANC
     etatCNY=digitalRead(this->pin_noirblanc);
     delayMicroseconds(250);                      // durant 250 us
     etatCNY=etatCNY&&digitalRead(this->pin_noirblanc);
-    return etatCNY;
+    return !etatCNY;
 }
