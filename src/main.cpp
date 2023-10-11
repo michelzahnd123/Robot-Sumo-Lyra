@@ -4,19 +4,26 @@
 //  -------------------------------------------------------
 
 /* liste de courses : .......
-  mesurer le temps réel de traitement des interruptions
-  vérifier la mesure et calcul de tension LiPo avec le nouveau pont diviseur
+  mesurer le temps réel de traitement des interruptions (31boucles 50us : 1.5ms)
+  vérifier la mesure et calcul de tension LiPo avec le nouveau pont diviseur (10k+3k+100)
   calculer les vitesses en fonction de la tension et des moteurs : L = V * t
   limiter le temps de déplacement à 1/2 dohyo en vitesse M7
   calculer le décalage systématique de la vitesse des moteurs, pour aller tout droit
 */
+
+// 11/10/2023- remontage version PCB moteur & bouton v1.1 : pin ESP 2.5 + header 3.5mm
+//             MC14490 démarre "sans capteurs" : CNY=1 (noirx3) - #2578=0 (présencex7)
+//             les moteurs ne démarrent pas :(
+//             . vérif -> affectation, connexions, câbles - test combat : 5 secondes
+//             . fréquence moteur PWM ... (ligne 500)
+
+
 
 
 // 12/9/2023 - désoudage ESP32, PH5 : pin header 5mm sur PCB moteur, ESP : pin mâle 4 mm
 //             inversion acquisition des pins CNY70 (MC14490 non inverseur) dans objet "NoirBlanc"
 //             inversion acquisition des boutons bGO et tON (MC14490 non inverseur) dans objet "Bouton"
 //             inventaire de tous les paramètres du programme : temps, vitesse, distance, etc ...
-
 // 8/9/2023 -  Dépôt DISTANT : GitHub - Dépôt LOCAL : PC ATELIER
 // 25/8/2023 - REACTION si ligne blanche ARRIERE verifie_noirblanc(), reactionLigneBlanche()
 // 24/8/2023 - GitHub remote https://github.com/michelzahnd123/Robot-Sumo-Lyra
@@ -197,13 +204,14 @@ volatile long topEsquiveBlancDerriere, tempsEsquiveBlancDerriere;
 volatile long topAvantBlanc, tempsAvantBlanc;
 volatile int memoireLigneBlanche;
 
-// micro-moteurs CC
+// micro-moteurs CC (pont en H : TB6612)
 #define pin_moteurGauche 33                      // moteur A (gauche)
-#define pin_AvMotGauche 27                       // A1 (ald 25)
 #define pin_ArrMotGauche 14                      // A2 (ald 26)
-#define pin_moteurDroit 32                       // moteur B (droit)
+#define pin_AvMotGauche 27                       // A1 (ald 25)
 #define pin_AvMotDroit 26                        // B1 (ald 14)
 #define pin_ArrMotDroit 25                       // B2 (ald 27)
+#define pin_moteurDroit 32                       // moteur B (droit)
+
 Servo moteurGauche;                              // creation moteurs
 Servo moteurDroite;
 volatile int oldVitGauche, oldVitDroite;
@@ -234,8 +242,8 @@ volatile bool continueMouvement;
 
 // global combat
 int cptPoint, cptExploration;
-//#define dureeTotalCombat 10000                                // 10 secondes -> pour test
-#define dureeTotalCombat 60000                                  // 1 minute -> durée du combat
+#define dureeTotalCombat 5000                                   // 5 secondes -> pour test
+//#define dureeTotalCombat 120000                               // 2 minutes -> durée du combat
 #define dureeBoucleCombat 3                                     // 3 ms -> distance 3 mm
 volatile unsigned long topDepartCombat, tempsDeCombat;
 volatile unsigned long chrono5Secondes, avanceDuChrono;
@@ -1107,7 +1115,6 @@ void loop()
 /*
 1 : arret d'urgence    > 10
 2 : ligne blanche      > 21(G+D), 22(G), 23(D)
-
 3 : présence AV, AvD   > 63(AG), 30(AG-A), 31(A), 32(A-AD), 33(AD)
 4 : présence Dro, aRrD > 34(AD-D), 41(D), 42(D-RD)
 5 : présence aRR, aRrG > 43(RD), 51(RD-RG), 52(RG)
@@ -1159,6 +1166,17 @@ if(signalDepartTelecom==true&&signalBoutonBouton==false){parcours1metre();}
 topDepartCombat=millis();
 tempsDeCombat=0;
 
+//
+// *** TEST FONCTIONNEMENT des MOTEURS ***
+ // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* 
+  SensEtDeplacement(TOUT_AVANT,vitesseM6,vitesseM6);
+  delay(dureeTotalCombat);                      // 5 secondes (test)
+  //
+  ArretOuFreinage(0);
+  while(1){;};                                  // attente
+ // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+//
+
 // PREMIER MOUVEMENT - PREMIERE SECONDE
 // ********** adversaire détécté dans le comptage des secondes ************************************
 if(alertePresence==true){
@@ -1204,12 +1222,13 @@ if(alertePresence==true){
     SensEtDeplacement(TOUT_AVANT,vitesseM7,vitesseM7);
     delay(duree1SecondeAvant);}
 }
-/*
+//
+// *** TEST de DIRECTION -> PREMIERE SECONDE ***
  // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* 
   ArretOuFreinage(0);
   while(1){;};                                  // visualisation 1ère seconde
  // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
-*/
+//
 // BOUCLE de COMBAT
 // ********** boucle 3 ms *************************************************************************
 
