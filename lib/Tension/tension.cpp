@@ -3,8 +3,8 @@
 
 // constructeur de Tension
 Tension::Tension(int pin_tension){
-    this->pin_tension=pin_tension;
-    this->coefTension=3.79;                      // Ratio = (10k+3k56)/3k56
+    this->pin_tension=pin_tension;               // tension pont diviseur y=0.2371x-0.0137
+    this->coefTension=4.22;                      // Ratio = (10k+3k1)/3k1
     this->limiteTension=10.00;                   // LiPo 3S
     pinMode(this->pin_tension, INPUT_PULLDOWN);
 }

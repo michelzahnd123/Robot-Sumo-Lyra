@@ -1,25 +1,25 @@
 //  -------------------------------------------------------
-//  --------- programme robot SUMO 2024 -------------------
-//  ------------------- LYRA version 1 --------------------
+//  -------------- programme robot ROBOT 2024 --------------
+//  ------------------- LYRA version 1.1 ------------------
 //  -------------------------------------------------------
 
 /* liste de courses : .......
-  mesurer le temps réel de traitement des interruptions (31boucles 50us : 1.5ms)
-  vérifier la mesure et calcul de tension LiPo avec le nouveau pont diviseur (10k+3k+100)
+  mesurer le temps réel de traitement des interruptions (31 boucles 50 us : 1.5ms)
   calculer les vitesses en fonction de la tension et des moteurs : L = V * t
   limiter le temps de déplacement à 1/2 dohyo en vitesse M7
   calculer le décalage systématique de la vitesse des moteurs, pour aller tout droit
 */
 
+
+
+// 16/10/2023- calcul de tension LiPo avec pont diviseur (10k+3k+100) : y=0.2371x-0.0137
+// 15/10/2023- test de fonctionnement des capteurs #2578 -> OK sur dohyo NOIR, pb sur BLANC
+// 12/10/2023- désactivation du WiFi et du Bluetooth (dans le setup)
 // 11/10/2023- remontage version PCB moteur & bouton v1.1 : pin ESP 2.5 + header 3.5mm
-//             MC14490 démarre "sans capteurs" : CNY=1 (noirx3) - #2578=0 (présencex7)
+//             . new ESP32 usbC - new TB6612 - MC14490 cms - connecteur JST
+//             . démarre "sans capteurs" : CNY=1 (noir*3) - #2578=0 (présence*7)
 //             les moteurs ne démarrent pas :(
-//             . vérif -> affectation, connexions, câbles - test combat : 5 secondes
-//             . fréquence moteur PWM ... (ligne 500)
-
-
-
-
+//             . vérif -> affectation, connexions, câbles - test combat : 2 x 2.5 sec -> OK :)
 // 12/9/2023 - désoudage ESP32, PH5 : pin header 5mm sur PCB moteur, ESP : pin mâle 4 mm
 //             inversion acquisition des pins CNY70 (MC14490 non inverseur) dans objet "NoirBlanc"
 //             inversion acquisition des boutons bGO et tON (MC14490 non inverseur) dans objet "Bouton"
@@ -163,6 +163,8 @@
 #include <cstdlib>
 #include <ctime>
 #include "Wire.h"
+#include <WiFi.h>
+#include <esp_bt.h>
 
 #include "led.h"
 #define pin_ledWork 12
@@ -242,7 +244,7 @@ volatile bool continueMouvement;
 
 // global combat
 int cptPoint, cptExploration;
-#define dureeTotalCombat 5000                                   // 5 secondes -> pour test
+#define dureeTotalCombat 2500                                   // 2.5 secondes -> pour test
 //#define dureeTotalCombat 120000                               // 2 minutes -> durée du combat
 #define dureeBoucleCombat 3                                     // 3 ms -> distance 3 mm
 volatile unsigned long topDepartCombat, tempsDeCombat;
@@ -442,7 +444,11 @@ void IRAM_ATTR adversaireApparuAG()
 //  -------------------------------------------------------
 void setup() 
 {
+// Communication série - Wifi - bluetooth
   Serial.begin(115200);
+  WiFi.disconnect();
+  WiFi.mode(WIFI_OFF); Serial.println("WiFi désactivé");
+  esp_bt_controller_disable();Serial.println("Bluetooth désactivé");
 
 // LED work
   ledWork.setPinLed(pin_ledWork);
@@ -823,37 +829,37 @@ else{
 
 // ***** affichage *****
 if(affichageVP==true){
-  Serial.print("JSu - AVANT          : ");
+  Serial.print("AVANT          : ");
     if(alertePresenceA==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
     Serial.print("  +>");Serial.print(nbApparitionA);
     Serial.print("  ->");Serial.println(nbDisparitionA);
 
-  Serial.print("Zad - AVANT DROITE   : ");
+  Serial.print("AVANT DROITE   : ");
     if(alertePresenceAD==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
     Serial.print("  +>");Serial.print(nbApparitionAD);
     Serial.print("  ->");Serial.println(nbDisparitionAD);
 
-  Serial.print("JSu - DROITE         : ");
+  Serial.print("DROITE         : ");
     if(alertePresenceD==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
     Serial.print("  +>");Serial.print(nbApparitionD);
     Serial.print("  ->");Serial.println(nbDisparitionD);
 
-  Serial.print("Zad - ARRIERE DROITE : ");
+  Serial.print("ARRIERE DROITE : ");
     if(alertePresenceRD==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
     Serial.print("  +>");Serial.print(nbApparitionRD);
     Serial.print("  ->");Serial.println(nbDisparitionRD);
 
-  Serial.print("Zad - ARRIERE GAUCHE : ");
+  Serial.print("ARRIERE GAUCHE : ");
     if(alertePresenceRG==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
     Serial.print("  +>");Serial.print(nbApparitionRG);
     Serial.print("  ->");Serial.println(nbDisparitionRG);
 
-  Serial.print("JSu - GAUCHE         : ");
+  Serial.print("GAUCHE         : ");
     if(alertePresenceG==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
     Serial.print("  +>");Serial.print(nbApparitionG);
     Serial.print("  ->");Serial.println(nbDisparitionG);
 
-  Serial.print("Zad - AVANT GAUCHE   : ");
+  Serial.print("AVANT GAUCHE   : ");
     if(alertePresenceAG==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
     Serial.print("  +>");Serial.print(nbApparitionAG);
     Serial.print("  ->");Serial.println(nbDisparitionAG);
@@ -1119,7 +1125,6 @@ void loop()
 4 : présence Dro, aRrD > 34(AD-D), 41(D), 42(D-RD)
 5 : présence aRR, aRrG > 43(RD), 51(RD-RG), 52(RG)
 6 : présence Gau, AvG  > 53(RG-G), 61(G), 62(G-AG)
-
 7 : aucune détection   > 71(G), 72(D)
 */
 {
@@ -1165,16 +1170,33 @@ if(signalDepartTelecom==true&&signalBoutonBouton==false){parcours1metre();}
 // Dans tous les CAS : c'est parti !!!
 topDepartCombat=millis();
 tempsDeCombat=0;
-
-//
+/*
 // *** TEST FONCTIONNEMENT des MOTEURS ***
- // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* 
-  SensEtDeplacement(TOUT_AVANT,vitesseM6,vitesseM6);
-  delay(dureeTotalCombat);                      // 5 secondes (test)
-  //
+  SensEtDeplacement(TOUT_AVANT,vitesseM6,vitesseM3);delay(2500);     // tourne 1 tour à droite
+  ledWork.impulsion(0);
+  SensEtDeplacement(TOUT_AVANT,vitesseM3,vitesseM6);delay(2500));    // tourne 1 tour à gauche
   ArretOuFreinage(0);
-  while(1){;};                                  // attente
- // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+  ledWork.impulsion(1);ledWork.impulsion(0);
+  while(1){;};                                                       // arrêt à la fin du "8"
+*/
+//
+// *** TEST FONCTIONNEMENT des CAPTEURS #2578 ***
+delay(3000);
+verifie_presence(true);
+  if(alertePresenceA==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
+verifie_presence(true);
+  if(alertePresenceAD==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
+verifie_presence(true);
+  if(alertePresenceD==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);} 
+verifie_presence(true);
+  if(alertePresenceRD==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
+verifie_presence(true);
+  if(alertePresenceRG==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
+verifie_presence(true);
+  if(alertePresenceG==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
+verifie_presence(true);
+  if(alertePresenceAG==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);} 
+while(1){;};                                                       // arrêt après 7 capteurs
 //
 
 // PREMIER MOUVEMENT - PREMIERE SECONDE
