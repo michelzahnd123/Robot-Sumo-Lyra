@@ -4,22 +4,36 @@
 //  -------------------------------------------------------
 
 /* liste de courses : .......
-  mesurer le temps réel de traitement des interruptions (31 boucles 50 us : 1.5ms)
   calculer les vitesses en fonction de la tension et des moteurs : L = V * t
   limiter le temps de déplacement à 1/2 dohyo en vitesse M7
   calculer le décalage systématique de la vitesse des moteurs, pour aller tout droit
+  vérifier la détection présence pendant décomptage des 5 secondes
+  affinage du mouvement si 4 capteurs actifs (grande Bataille)
+  test de direction 1ère seconde
+  reprendre et affiner la directivité des capteurs "presence"
+  vérification des "durées" 1ère seconde
 */
 
 
 
+// 28/10/2023- tests 1ère seconde pb -> côté gauche sans mvt - détection bord si proche
+//             A : ok - AD : ok - D : ok - RD : ok - RG : NOK(G) - G : ->NOK(rien) - AG : ok 
+
+
+// 25/10/2023- montage maquette PCB (version 1.2) : mode "ON" <-> node "PROG"
+// 21/10/2023- test de téléchargement en ouvrant 3.3V et 5V (VIN) : OK ->faire new PCB !
+// 20/10/2023- traitement des interruptions : 3 boucles x 25 us ald 31x50 -> 75 us : OK
+//             visibilité adversaire : BLANC -> 30cm - NOIR MAt -> 12.5cm
 // 16/10/2023- calcul de tension LiPo avec pont diviseur (10k+3k+100) : y=0.2371x-0.0137
 // 15/10/2023- test de fonctionnement des capteurs #2578 -> OK sur dohyo NOIR, pb sur BLANC
 // 12/10/2023- désactivation du WiFi et du Bluetooth (dans le setup)
 // 11/10/2023- remontage version PCB moteur & bouton v1.1 : pin ESP 2.5 + header 3.5mm
 //             . new ESP32 usbC - new TB6612 - MC14490 cms - connecteur JST
 //             . démarre "sans capteurs" : CNY=1 (noir*3) - #2578=0 (présence*7)
+//             # capteur ligne non branché -> alerte ligne blanche "faux"
+//             # capteur présence non branché -> alerte présence "vrai"
 //             les moteurs ne démarrent pas :(
-//             . vérif -> affectation, connexions, câbles - test combat : 2 x 2.5 sec -> OK :)
+//             Vérif -> affectation, connexions, câbles - test : 2 x 2.5 sec -> OK :)
 // 12/9/2023 - désoudage ESP32, PH5 : pin header 5mm sur PCB moteur, ESP : pin mâle 4 mm
 //             inversion acquisition des pins CNY70 (MC14490 non inverseur) dans objet "NoirBlanc"
 //             inversion acquisition des boutons bGO et tON (MC14490 non inverseur) dans objet "Bouton"
@@ -324,11 +338,11 @@ volatile int dureeEsquiveBlanc, dureeAvantBlanc, dureeDerriereBlanc;
 void IRAM_ATTR adversaireApparuA()
 { 
   lecturePlus=0;lectureMoins=0;
-  for(indiceLecture=0;indiceLecture<31;indiceLecture++){
+  for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_A);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
     else{lectureMoins=lectureMoins+1;}
-    delayMicroseconds(50);}
+    delayMicroseconds(25);}
   //
   if(lecturePlus>lectureMoins){
     alertePresenceA=true;
@@ -341,11 +355,11 @@ void IRAM_ATTR adversaireApparuA()
 void IRAM_ATTR adversaireApparuAD()
 {
   lecturePlus=0;lectureMoins=0;
-  for(indiceLecture=0;indiceLecture<31;indiceLecture++){
+  for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_AD);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
     else{lectureMoins=lectureMoins+1;}
-    delayMicroseconds(50);}
+    delayMicroseconds(25);}
   //
   if(lecturePlus>lectureMoins){
     alertePresenceAD=true;
@@ -358,11 +372,11 @@ void IRAM_ATTR adversaireApparuAD()
 void IRAM_ATTR adversaireApparuD()
 {
   lecturePlus=0;lectureMoins=0;
-  for(indiceLecture=0;indiceLecture<31;indiceLecture++){
+  for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_D);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
     else{lectureMoins=lectureMoins+1;}
-    delayMicroseconds(50);}
+    delayMicroseconds(25);}
   //
   if(lecturePlus>lectureMoins){
     alertePresenceD=true;
@@ -375,11 +389,11 @@ void IRAM_ATTR adversaireApparuD()
 void IRAM_ATTR adversaireApparuRD()
 {
   lecturePlus=0;lectureMoins=0;
-  for(indiceLecture=0;indiceLecture<31;indiceLecture++){
+  for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_RD);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
     else{lectureMoins=lectureMoins+1;}
-    delayMicroseconds(50);}
+    delayMicroseconds(25);}
   //
   if(lecturePlus>lectureMoins){
     alertePresenceRD=true;
@@ -392,11 +406,11 @@ void IRAM_ATTR adversaireApparuRD()
 void IRAM_ATTR adversaireApparuRG()
 {
   lecturePlus=0;lectureMoins=0;
-  for(indiceLecture=0;indiceLecture<31;indiceLecture++){
+  for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_RG);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
     else{lectureMoins=lectureMoins+1;}
-    delayMicroseconds(50);}
+    delayMicroseconds(25);}
   //
   if(lecturePlus>lectureMoins){
     alertePresenceRG=true;
@@ -409,11 +423,11 @@ void IRAM_ATTR adversaireApparuRG()
 void IRAM_ATTR adversaireApparuG()
 { 
   lecturePlus=0;lectureMoins=0;
-  for(indiceLecture=0;indiceLecture<31;indiceLecture++){
+  for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_G);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
     else{lectureMoins=lectureMoins+1;}
-    delayMicroseconds(50);}
+    delayMicroseconds(25);}
   //
   if(lecturePlus>lectureMoins){
     alertePresenceG=true;
@@ -426,11 +440,11 @@ void IRAM_ATTR adversaireApparuG()
 void IRAM_ATTR adversaireApparuAG()
 {
   lecturePlus=0;lectureMoins=0;
-  for(indiceLecture=0;indiceLecture<31;indiceLecture++){
+  for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_AG);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
     else{lectureMoins=lectureMoins+1;}
-    delayMicroseconds(50);}
+    delayMicroseconds(25);}
   //
   if(lecturePlus>lectureMoins){
     alertePresenceAG=true;
@@ -521,7 +535,7 @@ void setup()
   duree1SecondeArriereGauche=int(duree1SecondeArriereGaucheRef*tension1SecondeRef/tensionLiPoMesuree);
   duree1SecondeArriere=int(duree1SecondeArriereRef*tension1SecondeRef/tensionLiPoMesuree);
   Serial.print("duree 1ere Seconde Avant          : "); Serial.println(duree1SecondeAvant);
-  /*
+  //
   Serial.print("duree 1ere Seconde Avant Droite   : "); Serial.println(duree1SecondeAvantDroite);
   Serial.print("duree 1ere Seconde Avant Gauche   : "); Serial.println(duree1SecondeAvantGauche);
   Serial.print("duree 1ere Seconde Droite         : "); Serial.println(duree1SecondeDroite);
@@ -529,7 +543,7 @@ void setup()
   Serial.print("duree 1ere Seconde Arriere Droite : "); Serial.println(duree1SecondeArriereDroite);
   Serial.print("duree 1ere Seconde Arriere Gauche : "); Serial.println(duree1SecondeArriereGauche);
   Serial.print("duree 1ere Seconde Arriere        : "); Serial.println(duree1SecondeArriere);
-  */
+  //
 // durée de réaction si adversaire détecté
   dureeReactionAvant=int(dureeReactionAvantRef*tensionReactionRef/tensionLiPoMesuree);
   dureeReactionAvantDroite=int(dureeReactionAvantDroiteRef*tensionReactionRef/tensionLiPoMesuree);
@@ -540,7 +554,7 @@ void setup()
   dureeReactionArriereGauche=int(dureeReactionArriereGaucheRef*tensionReactionRef/tensionLiPoMesuree);
   dureeReactionArriere=int(dureeReactionArriereRef*tensionReactionRef/tensionLiPoMesuree);
   Serial.print("duree Reaction Avant          : ");Serial.println(dureeReactionAvant);
-  /*
+  //
   Serial.print("duree Reaction Avant Droite   : ");Serial.println(dureeReactionAvantDroite);
   Serial.print("duree Reaction Avant Gauche   : ");Serial.println(dureeReactionAvantGauche);
   Serial.print("duree Reaction Droite         : ");Serial.println(dureeReactionDroite);
@@ -548,7 +562,7 @@ void setup()
   Serial.print("duree Reaction Arriere Droite : ");Serial.println(dureeReactionArriereDroite);
   Serial.print("duree Reaction Arriere Gauche : ");Serial.println(dureeReactionArriereGauche);
   Serial.print("duree Reaction Arriere        : ");Serial.println(dureeReactionArriere);
-  */
+  //
 // vitesse des moteurs      
   vitesseM0=0;
   vitesseM1=27;
@@ -873,6 +887,13 @@ nbApparitionRD=0;nbDisparitionRD=0;
 nbApparitionRG=0;nbDisparitionRG=0;
 nbApparitionG=0;nbDisparitionG=0;
 nbApparitionAG=0;nbDisparitionAG=0;
+
+// ***** calibrage Nb Capteurs Actifs *****
+if(nbCapteurActif<=0){nbCapteurActif=0;}
+if(nbCapteurActif==1){;}                    // 1 seule direction
+if(nbCapteurActif==2){;}                    // adversaire proche
+if(nbCapteurActif==3){;}                    // 3 cas : AvantDroit, AVANT ou AvantGauche
+if(nbCapteurActif>=4){nbCapteurActif=4;}    // cas de la Great Battle
 }
 //  -------------------------------------------------------
 void PresenceLoinPres(bool affichagePLP)
@@ -933,6 +954,10 @@ void PresenceLoinPres(bool affichagePLP)
     }
   // ***** définition des mouvements *****
   switch (nbCapteurActif){
+    case 0:                                                    // adv non détecté
+      alertePresence=false;
+      adversaireProche=false;
+      break;
     case 1:                                                    // 1 capteur actif
       alertePresence=true;
       adversaireProche=false;
@@ -981,9 +1006,37 @@ void PresenceLoinPres(bool affichagePLP)
       if((alertePresenceA==true)&&(alertePresenceAD==true)&&(alertePresenceAG==true)){
         mouvement=31; directionAdversaire=AVANT;}
       break;
-    default:                                                   // 0 capteur OU impossible !!!
-      alertePresence=false;
-      adversaireProche=false;
+    case 4:                                                   // Grande Bataille !!!
+      alertePresence=true;
+      adversaireProche=true;
+      // priorité avant
+      if(alertePresenceA==true){
+        if((alertePresenceD==true)&&(alertePresenceAD==true)){
+          mouvement=33; directionAdversaire=AVANT_DROITE;}
+        if((alertePresenceG==true)&&(alertePresenceAG==true)){
+          mouvement=63; directionAdversaire=AVANT_GAUCHE;}
+        if((alertePresenceAD==true)&&(alertePresenceAG==true)){
+          mouvement=31; directionAdversaire=AVANT;}}
+      else{
+        // priorité à droite
+        if(alertePresenceD==true){
+          if((alertePresenceAD==true)&&(alertePresenceRD==true)){
+            mouvement=41; directionAdversaire=DROITE;}
+          if((alertePresenceRD==true)&&(alertePresenceRG==true)){
+            mouvement=43; directionAdversaire=ARRIERE_DROITE;}}
+        else{
+          // priorité à gauche
+          if(alertePresenceG==true){
+            if((alertePresenceAG==true)&&(alertePresenceRG==true)){
+              mouvement=61; directionAdversaire=GAUCHE;}
+            if((alertePresenceRG==true)&&(alertePresenceRD==true)){
+              mouvement=52; directionAdversaire=ARRIERE_GAUCHE;}}
+          else{
+          if((alertePresenceRG==true)&&(alertePresenceRD==false)){
+            mouvement=52; directionAdversaire=ARRIERE_GAUCHE;}
+          if((alertePresenceRG==false)&&(alertePresenceRD==true)){
+            mouvement=43; directionAdversaire=ARRIERE_DROITE;}
+      }}}
       break;
   } 
 }
@@ -1162,7 +1215,8 @@ while(signalDepartTelecom==false&&signalBoutonBouton==false){
   verifie_bouton();}
 
 // si BOUTON : décomptage des 5 secondes
-if(signalDepartTelecom==false&&signalBoutonBouton==true){decompte5secondes();}
+// *** COMPTAGE SUSPENDU PENDANT les TESTS ***
+//if(signalDepartTelecom==false&&signalBoutonBouton==true){decompte5secondes();}
 
 // si TELECOM : parcours homologation -> 1m
 if(signalDepartTelecom==true&&signalBoutonBouton==false){parcours1metre();}
@@ -1171,36 +1225,38 @@ if(signalDepartTelecom==true&&signalBoutonBouton==false){parcours1metre();}
 topDepartCombat=millis();
 tempsDeCombat=0;
 /*
-// *** TEST FONCTIONNEMENT des MOTEURS ***
+// *** TEST FONCTIONNEMENT des MOTEURS SEULS ***
   SensEtDeplacement(TOUT_AVANT,vitesseM6,vitesseM3);delay(2500);     // tourne 1 tour à droite
   ledWork.impulsion(0);
   SensEtDeplacement(TOUT_AVANT,vitesseM3,vitesseM6);delay(2500));    // tourne 1 tour à gauche
   ArretOuFreinage(0);
   ledWork.impulsion(1);ledWork.impulsion(0);
-  while(1){;};                                                       // arrêt à la fin du "8"
+  while(1){;};                                                       // arrêt à la fin du Grand "8"
 */
 //
-// *** TEST FONCTIONNEMENT des CAPTEURS #2578 ***
-delay(3000);
-verifie_presence(true);
-  if(alertePresenceA==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
-verifie_presence(true);
-  if(alertePresenceAD==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
-verifie_presence(true);
-  if(alertePresenceD==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);} 
-verifie_presence(true);
-  if(alertePresenceRD==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
-verifie_presence(true);
-  if(alertePresenceRG==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
-verifie_presence(true);
-  if(alertePresenceG==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);}
-verifie_presence(true);
-  if(alertePresenceAG==true){ledWork.flashLumineux(5,2000);}else{ledWork.flashLumineux(1,2000);} 
-while(1){;};                                                       // arrêt après 7 capteurs
+// *** TEST FONCTIONNEMENT des 7 CAPTEURS #2578 ***
+delay(2000);
+PresenceLoinPres(false);
+  if(alertePresenceA==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
+//PresenceLoinPres(false);
+  if(alertePresenceAD==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
+//PresenceLoinPres(false);
+  if(alertePresenceD==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);} 
+//PresenceLoinPres(false);
+  if(alertePresenceRD==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
+//PresenceLoinPres(false);
+  if(alertePresenceRG==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
+//PresenceLoinPres(false);
+  if(alertePresenceG==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
+//PresenceLoinPres(false);
+  if(alertePresenceAG==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);} 
+//while(1){;};                                                       // arrêt après 7 capteurs
 //
 
 // PREMIER MOUVEMENT - PREMIERE SECONDE
-// ********** adversaire détécté dans le comptage des secondes ************************************
+// *** DETECTION SUSPENDUE PENDANT les TESTS ***
+//PresenceLoinPres(false);                         // lecture des 7 capteurs sans affichage
+
 if(alertePresence==true){
   switch (directionAdversaire){
     case AVANT:                                  // 31
@@ -1238,19 +1294,15 @@ if(alertePresence==true){
       SensEtDeplacement(SUR_PLACE_GAUCHE,vitesseM4,vitesseM6);
       delay(duree1SecondeAvantGauche);
       break;}
-    
-  PresenceLoinPres(true);                        // vérifie si on le retrouve à l'AVANT
-  if(directionAdversaire==AVANT){
-    SensEtDeplacement(TOUT_AVANT,vitesseM7,vitesseM7);
-    delay(duree1SecondeAvant);}
 }
 //
 // *** TEST de DIRECTION -> PREMIERE SECONDE ***
- // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-* 
+  SensEtDeplacement(TOUT_AVANT,vitesseM6,vitesseM6);
+  delay(100);
   ArretOuFreinage(0);
-  while(1){;};                                  // visualisation 1ère seconde
- // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+  while(1){;};                                   // visualisation 1ère seconde
 //
+
 // BOUCLE de COMBAT
 // ********** boucle 3 ms *************************************************************************
 
