@@ -10,18 +10,21 @@
   vérifier la détection présence pendant décomptage des 5 secondes
   affinage du mouvement si 4 capteurs actifs (grande Bataille)
   test de direction 1ère seconde
-  reprendre et affiner la directivité des capteurs "presence"
+  améliorer la directivité des capteurs "presence"
   vérification des "durées" 1ère seconde
+  supprimer signal capteur lorsqu'il est bruité (limite de détection)
 */
 
 
+// 31/10/2023- modification des modes d'interruption : suppression des parasites
 
-// 28/10/2023- tests 1ère seconde pb -> côté gauche sans mvt - détection bord si proche
+// 29/10/2023- tests 1ère seconde pb -> côté gauche sans mvt - détection bord si proche
 //             A : ok - AD : ok - D : ok - RD : ok - RG : NOK(G) - G : ->NOK(rien) - AG : ok 
-
-
+//             -> capteur RD : NOK
+//             Mode PROG obligatoire pour 3.3V - indifférent pour VIN (5V) -> PCB vers 1.2 !
+//             Pont en H : ZK-5AD peut fournir le 3.3V pour MC14490 et LED
 // 25/10/2023- montage maquette PCB (version 1.2) : mode "ON" <-> node "PROG"
-// 21/10/2023- test de téléchargement en ouvrant 3.3V et 5V (VIN) : OK ->faire new PCB !
+// 21/10/2023- test de téléchargement en ouvrant 3.3V et 5V (VIN) : OK ->faire new PCB vers. 1.2 !
 // 20/10/2023- traitement des interruptions : 3 boucles x 25 us ald 31x50 -> 75 us : OK
 //             visibilité adversaire : BLANC -> 30cm - NOIR MAt -> 12.5cm
 // 16/10/2023- calcul de tension LiPo avec pont diviseur (10k+3k+100) : y=0.2371x-0.0137
@@ -308,14 +311,10 @@ volatile float tensionLiPoMesuree;
 volatile bool alertePresenceA, alertePresenceAD, alertePresenceD, alertePresenceRD;
 volatile bool alertePresenceRG, alertePresenceG, alertePresenceAG;
 volatile bool alertePresence, adversaireProche, lectureCapteur;
-volatile bool presenceAvecParasiteA, presenceAvecParasiteAD, presenceAvecParasiteD, presenceAvecParasiteRD;
-volatile bool presenceAvecParasiteRG, presenceAvecParasiteG, presenceAvecParasiteAG;
 volatile bool ilEstDerriere;
-volatile int indiceLecture, lecturePlus, lectureMoins, nbCapteurActif, nbAvecParasite;
-volatile int nbApparitionA, nbApparitionAD, nbApparitionD, nbApparitionRD; 
-volatile int nbApparitionRG, nbApparitionG, nbApparitionAG;
-volatile int nbDisparitionA, nbDisparitionAD, nbDisparitionD, nbDisparitionRD;
-volatile int nbDisparitionRG, nbDisparitionG, nbDisparitionAG;
+volatile int indiceLecture, lecturePlus, nbCapteurActif;
+volatile int nbInterruptionA, nbInterruptionAD, nbInterruptionD, nbInterruptionRD; 
+volatile int nbInterruptionRG, nbInterruptionG, nbInterruptionAG;
 
 // BFAF : blocage face à face
 #define attenteBlocage 3000
@@ -337,121 +336,100 @@ volatile int dureeEsquiveBlanc, dureeAvantBlanc, dureeDerriereBlanc;
 //  -------------------------------------------------------
 void IRAM_ATTR adversaireApparuA()
 { 
-  lecturePlus=0;lectureMoins=0;
+  lecturePlus=0;                                           // lecture 3 fois 25 micro-secondes
   for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_A);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
-    else{lectureMoins=lectureMoins+1;}
     delayMicroseconds(25);}
   //
-  if(lecturePlus>lectureMoins){
-    alertePresenceA=true;
-    nbApparitionA=nbApparitionA+1;}
-  else{
-    alertePresenceA=false;
-    nbDisparitionA=nbDisparitionA+1;}
+  if(lecturePlus==3){alertePresenceA=true;}                // valeur "presence" stabilisée
+  else{alertePresenceA=false;}                             // "rien" stabilisé ou "parasite"
+  //
+  nbInterruptionA=nbInterruptionA+1;                       // compteur d'interruption
 }
 //  -------------------------------------------------------
 void IRAM_ATTR adversaireApparuAD()
 {
-  lecturePlus=0;lectureMoins=0;
+  lecturePlus=0;
   for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_AD);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
-    else{lectureMoins=lectureMoins+1;}
     delayMicroseconds(25);}
   //
-  if(lecturePlus>lectureMoins){
-    alertePresenceAD=true;
-    nbApparitionAD=nbApparitionAD+1;}
-  else{
-    alertePresenceAD=false;
-    nbDisparitionAD=nbDisparitionAD+1;}
+  if(lecturePlus==3){alertePresenceAD=true;}
+  else{alertePresenceAD=false;}
+  //
+  nbInterruptionAD=nbInterruptionAD+1;
 }
 //  -------------------------------------------------------
 void IRAM_ATTR adversaireApparuD()
 {
-  lecturePlus=0;lectureMoins=0;
+  lecturePlus=0;
   for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_D);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
-    else{lectureMoins=lectureMoins+1;}
     delayMicroseconds(25);}
   //
-  if(lecturePlus>lectureMoins){
-    alertePresenceD=true;
-    nbApparitionD=nbApparitionD+1;}
-  else{
-    alertePresenceD=false;
-    nbDisparitionD=nbDisparitionD+1;}
+  if(lecturePlus==3){alertePresenceD=true;}
+  else{alertePresenceD=false;}
+  //
+  nbInterruptionD=nbInterruptionD+1;
 }
 //  -------------------------------------------------------
 void IRAM_ATTR adversaireApparuRD()
 {
-  lecturePlus=0;lectureMoins=0;
+  lecturePlus=0;
   for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_RD);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
-    else{lectureMoins=lectureMoins+1;}
     delayMicroseconds(25);}
   //
-  if(lecturePlus>lectureMoins){
-    alertePresenceRD=true;
-    nbApparitionRD=nbApparitionRD+1;}
-  else{
-    alertePresenceRD=false;
-    nbDisparitionRD=nbDisparitionRD+1;}
+  if(lecturePlus==3){alertePresenceRD=true;}
+  else{alertePresenceRD=false;}
+  //
+  nbInterruptionRD=nbInterruptionRD+1;
 }
 //  -------------------------------------------------------
 void IRAM_ATTR adversaireApparuRG()
 {
-  lecturePlus=0;lectureMoins=0;
+  lecturePlus=0;
   for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_RG);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
-    else{lectureMoins=lectureMoins+1;}
     delayMicroseconds(25);}
   //
-  if(lecturePlus>lectureMoins){
-    alertePresenceRG=true;
-    nbApparitionRG=nbApparitionRG+1;}
-  else{
-    alertePresenceRG=false;
-    nbDisparitionRG=nbDisparitionRG+1;}
+  if(lecturePlus==3){alertePresenceRG=true;}
+  else{alertePresenceRG=false;}
+  //
+  nbInterruptionRG=nbInterruptionRG+1;
 }
 //  -------------------------------------------------------
 void IRAM_ATTR adversaireApparuG()
 { 
-  lecturePlus=0;lectureMoins=0;
+  lecturePlus=0;
   for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_G);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
-    else{lectureMoins=lectureMoins+1;}
     delayMicroseconds(25);}
   //
-  if(lecturePlus>lectureMoins){
-    alertePresenceG=true;
-    nbApparitionG=nbApparitionG+1;}
-  else{
-    alertePresenceG=false;
-    nbDisparitionG=nbDisparitionG+1;}
+  if(lecturePlus==3){alertePresenceG=true;}
+  else{alertePresenceG=false;}
+  //
+  nbInterruptionG=nbInterruptionG+1;
 }
 //  -------------------------------------------------------
 void IRAM_ATTR adversaireApparuAG()
 {
-  lecturePlus=0;lectureMoins=0;
+  lecturePlus=0;
   for(indiceLecture=0;indiceLecture<3;indiceLecture++){
     lectureCapteur=!digitalRead(pin_JS40F_AG);
     if(lectureCapteur==true){lecturePlus=lecturePlus+1;}
-    else{lectureMoins=lectureMoins+1;}
     delayMicroseconds(25);}
   //
-  if(lecturePlus>lectureMoins){
-    alertePresenceAG=true;
-    nbApparitionAG=nbApparitionAG+1;}
-  else{
-    alertePresenceAG=false;
-    nbDisparitionAG=nbDisparitionAG+1;}
+  if(lecturePlus==3){alertePresenceAG=true;}
+  else{alertePresenceAG=false;}
+  //
+  nbInterruptionAG=nbInterruptionAG+1;
 }
 //  -------------------------------------------------------
 //  ----- SETUP -----
@@ -592,14 +570,10 @@ pinMode(pin_JS40F_AG, INPUT);
   alertePresenceA=false;alertePresenceAD=false;alertePresenceD=false;alertePresenceRD=false;
   alertePresenceRG=false;alertePresenceG=false;alertePresenceAG=false;
   alertePresence=false;adversaireProche=false;lectureCapteur=false;
-  presenceAvecParasiteA=false;presenceAvecParasiteAD=false;presenceAvecParasiteD=false;presenceAvecParasiteRD=false;
-  presenceAvecParasiteRG=false;presenceAvecParasiteG=false;presenceAvecParasiteAG=false;
   ilEstDerriere=false;
-  lecturePlus=0;lectureMoins=0;nbCapteurActif=0;nbAvecParasite=0;
-  nbApparitionA=0;nbApparitionAD=0;nbApparitionD=0;nbApparitionRD=0;
-  nbApparitionRG=0;nbApparitionG=0;nbApparitionAG=0;
-  nbDisparitionA=0;nbDisparitionAD=0;nbDisparitionD=0;nbDisparitionRD=0;
-  nbDisparitionRG=0;nbDisparitionG=0;nbDisparitionAG=0;
+  lecturePlus=0;nbCapteurActif=0;
+  nbInterruptionA=0;nbInterruptionAD=0;nbInterruptionD=0;nbInterruptionRD=0;
+  nbInterruptionRG=0;nbInterruptionG=0;nbInterruptionAG=0;
 
 // REACTION : blocage - ligne blanche
   dureeReactionBlocage=dureeReactionBlocageRef*tensionReactionRef/tensionLiPoMesuree;
@@ -753,140 +727,83 @@ void verifie_presence(bool affichageVP)
   présence à l'AVANT GAUCHE (30°)
 */
 {
-// ***** capteur actif & actif avec parasite *****
+// ***** capteur actif & actif avec interruption *****
 nbCapteurActif=0;
-nbAvecParasite=0;
 //
-if((nbApparitionA>=1)||(nbDisparitionA>=1)){                                // parasite A
-  if(alertePresenceA==true){
-    presenceAvecParasiteA=true;
-    nbCapteurActif=nbCapteurActif+1;
-    nbAvecParasite=nbAvecParasite+1;}
-  else{presenceAvecParasiteA=false;}}
-else{
-  presenceAvecParasiteA=false;
-  alertePresenceA=!digitalRead(pin_JS40F_A);
-  if(alertePresenceA==true){
-    nbCapteurActif=nbCapteurActif+1;}}
-
-if((nbApparitionAD>=1)||(nbDisparitionAD>=1)){                              // parasite AD
-  if(alertePresenceAD==true){
-    presenceAvecParasiteAD=true;
-    nbCapteurActif=nbCapteurActif+1;
-    nbAvecParasite=nbAvecParasite+1;}
-  else{presenceAvecParasiteAD=false;}}
-else{
-  presenceAvecParasiteAD=false;
-  alertePresenceAD=!digitalRead(pin_JS40F_AD);
-  if(alertePresenceAD==true){
-    nbCapteurActif=nbCapteurActif+1;}}
-
-if((nbApparitionD>=1)||(nbDisparitionD>=1)){                                // parasite D
-  if(alertePresenceD==true){
-    presenceAvecParasiteD=true;
-    nbCapteurActif=nbCapteurActif+1;
-    nbAvecParasite=nbAvecParasite+1;}
-  else{presenceAvecParasiteD=false;}}
-else{
-  presenceAvecParasiteD=false;
-  alertePresenceD=!digitalRead(pin_JS40F_D);
-  if(alertePresenceD==true){
-    nbCapteurActif=nbCapteurActif+1;}}
-
-if((nbApparitionRD>=1)||(nbDisparitionRD>=1)){                              // parasite RD
-  if(alertePresenceRD==true){
-    presenceAvecParasiteRD=true;
-    nbCapteurActif=nbCapteurActif+1;
-    nbAvecParasite=nbAvecParasite+1;}
-  else{presenceAvecParasiteRD=false;}}
-else{
-  presenceAvecParasiteRD=false;
-  alertePresenceRD=!digitalRead(pin_JS40F_RD);
-  if(alertePresenceRD==true){
-    nbCapteurActif=nbCapteurActif+1;}}
-
-if((nbApparitionRG>=1)||(nbDisparitionRG>=1)){                              // parasite RG
-  if(alertePresenceRG==true){
-    presenceAvecParasiteRG=true;
-    nbCapteurActif=nbCapteurActif+1;
-    nbAvecParasite=nbAvecParasite+1;}
-  else{presenceAvecParasiteRG=false;}}
-else{
-  presenceAvecParasiteRG=false;
-  alertePresenceRG=!digitalRead(pin_JS40F_RG);
-  if(alertePresenceRG==true){
-    nbCapteurActif=nbCapteurActif+1;}}
-
-if((nbApparitionG>=1)||(nbDisparitionG>=1)){                                // parasite G
-  if(alertePresenceG==true){
-    presenceAvecParasiteG=true;
-    nbCapteurActif=nbCapteurActif+1;
-    nbAvecParasite=nbAvecParasite+1;}
-  else{presenceAvecParasiteG=false;}}
-else{
-  presenceAvecParasiteG=false;
-  alertePresenceG=!digitalRead(pin_JS40F_G);
-  if(alertePresenceG==true){
-    nbCapteurActif=nbCapteurActif+1;}}
-
-if((nbApparitionAG>=1)||(nbDisparitionAG>=1)){                              // parasite AG
-  if(alertePresenceAG==true){
-    presenceAvecParasiteAG=true;
-    nbCapteurActif=nbCapteurActif+1;
-    nbAvecParasite=nbAvecParasite+1;}
-  else{presenceAvecParasiteAG=false;}}
-else{
-  presenceAvecParasiteAG=false;
-  alertePresenceAG=!digitalRead(pin_JS40F_AG);
-  if(alertePresenceAG==true){
-    nbCapteurActif=nbCapteurActif+1;}}
-
+if(nbInterruptionA>=1){                                              // Interruption A
+  alertePresenceA=(alertePresenceA)&&(!digitalRead(pin_JS40F_A));}
+else{alertePresenceA=!digitalRead(pin_JS40F_A);}
+if(alertePresenceA==true){nbCapteurActif=nbCapteurActif+1;}                                        
+//
+if(nbInterruptionAD>=1){                                             // Interruption AD
+  alertePresenceAD=(alertePresenceAD)&&(!digitalRead(pin_JS40F_AD));}
+else{alertePresenceAD=!digitalRead(pin_JS40F_AD);}
+if(alertePresenceAD==true){nbCapteurActif=nbCapteurActif+1;}                                        
+//
+if(nbInterruptionD>=1){                                             // Interruption D
+  alertePresenceD=(alertePresenceD)&&(!digitalRead(pin_JS40F_D));}
+else{alertePresenceD=!digitalRead(pin_JS40F_D);}
+if(alertePresenceD==true){nbCapteurActif=nbCapteurActif+1;}
+//
+if(nbInterruptionRD>=1){                                             // Interruption RD
+  alertePresenceRD=(alertePresenceRD)&&(!digitalRead(pin_JS40F_RD));}
+else{alertePresenceRD=!digitalRead(pin_JS40F_RD);}
+if(alertePresenceRD==true){nbCapteurActif=nbCapteurActif+1;}
+//
+if(nbInterruptionRG>=1){                                             // Interruption RG
+  alertePresenceRG=(alertePresenceRG)&&(!digitalRead(pin_JS40F_RG));}
+else{alertePresenceRG=!digitalRead(pin_JS40F_RG);}
+if(alertePresenceRG==true){nbCapteurActif=nbCapteurActif+1;}
+//
+if(nbInterruptionG>=1){                                             // Interruption G
+  alertePresenceG=(alertePresenceG)&&(!digitalRead(pin_JS40F_G));}
+else{alertePresenceG=!digitalRead(pin_JS40F_G);}
+if(alertePresenceG==true){nbCapteurActif=nbCapteurActif+1;}
+//
+if(nbInterruptionAG>=1){                                             // Interruption AG
+  alertePresenceAG=(alertePresenceAG)&&(!digitalRead(pin_JS40F_AG));}
+else{alertePresenceAG=!digitalRead(pin_JS40F_AG);}
+if(alertePresenceAG==true){nbCapteurActif=nbCapteurActif+1;}
+//
 // ***** affichage *****
 if(affichageVP==true){
   Serial.print("AVANT          : ");
     if(alertePresenceA==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
-    Serial.print("  +>");Serial.print(nbApparitionA);
-    Serial.print("  ->");Serial.println(nbDisparitionA);
+    Serial.print("  +>");Serial.print(nbInterruptionA);
 
   Serial.print("AVANT DROITE   : ");
     if(alertePresenceAD==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
-    Serial.print("  +>");Serial.print(nbApparitionAD);
-    Serial.print("  ->");Serial.println(nbDisparitionAD);
+    Serial.print("  +>");Serial.print(nbInterruptionAD);
 
   Serial.print("DROITE         : ");
     if(alertePresenceD==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
-    Serial.print("  +>");Serial.print(nbApparitionD);
-    Serial.print("  ->");Serial.println(nbDisparitionD);
+    Serial.print("  +>");Serial.print(nbInterruptionD);
 
   Serial.print("ARRIERE DROITE : ");
     if(alertePresenceRD==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
-    Serial.print("  +>");Serial.print(nbApparitionRD);
-    Serial.print("  ->");Serial.println(nbDisparitionRD);
+    Serial.print("  +>");Serial.print(nbInterruptionRD);
 
   Serial.print("ARRIERE GAUCHE : ");
     if(alertePresenceRG==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
-    Serial.print("  +>");Serial.print(nbApparitionRG);
-    Serial.print("  ->");Serial.println(nbDisparitionRG);
+    Serial.print("  +>");Serial.print(nbInterruptionRG);
 
   Serial.print("GAUCHE         : ");
     if(alertePresenceG==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
-    Serial.print("  +>");Serial.print(nbApparitionG);
-    Serial.print("  ->");Serial.println(nbDisparitionG);
+    Serial.print("  +>");Serial.print(nbInterruptionG);
 
   Serial.print("AVANT GAUCHE   : ");
     if(alertePresenceAG==true){Serial.print("=ADV  ");}else{Serial.print("rien  ");}
-    Serial.print("  +>");Serial.print(nbApparitionAG);
-    Serial.print("  ->");Serial.println(nbDisparitionAG);
+    Serial.print("  +>");Serial.print(nbInterruptionAG);
 }
   
-// ***** ré-initialisation *****
-nbApparitionA=0;nbDisparitionA=0;
-nbApparitionAD=0;nbDisparitionAD=0;
-nbApparitionD=0;nbDisparitionD=0;
-nbApparitionRD=0;nbDisparitionRD=0;
-nbApparitionRG=0;nbDisparitionRG=0;
-nbApparitionG=0;nbDisparitionG=0;
-nbApparitionAG=0;nbDisparitionAG=0;
+// ***** ré-initialisation pour le prochain cycle de 3ms *****
+  nbInterruptionA=0;
+  nbInterruptionAD=0;
+  nbInterruptionD=0;
+  nbInterruptionRD=0;
+  nbInterruptionRG=0;
+  nbInterruptionG=0;
+  nbInterruptionAG=0;
 
 // ***** calibrage Nb Capteurs Actifs *****
 if(nbCapteurActif<=0){nbCapteurActif=0;}
@@ -903,43 +820,6 @@ void PresenceLoinPres(bool affichagePLP)
   verifie_presence(false);                                     // affichage des capteurs
   adversaireProche=false;
 
-  // ***** élimination des capteurs avec parasite *****
-  if((nbCapteurActif>1)&&(nbAvecParasite>0)){                 
-    if((alertePresenceA==true)&&(presenceAvecParasiteA==true)) {
-      alertePresenceA=false;
-      presenceAvecParasiteA=false;
-      nbCapteurActif=nbCapteurActif-1;nbAvecParasite=nbAvecParasite-1;}
-
-    if((alertePresenceAD==true)&&(presenceAvecParasiteAD==true)){
-      alertePresenceAD=false;
-      presenceAvecParasiteAD=false;
-      nbCapteurActif=nbCapteurActif-1;nbAvecParasite=nbAvecParasite-1;}
-
-    if((alertePresenceD==true)&&(presenceAvecParasiteD==true)) {
-      alertePresenceD=false;
-      presenceAvecParasiteD=false;
-      nbCapteurActif=nbCapteurActif-1;nbAvecParasite=nbAvecParasite-1;}
-
-    if((alertePresenceRD==true)&&(presenceAvecParasiteRD==true)){
-      alertePresenceRD=false;
-      presenceAvecParasiteRD=false;
-      nbCapteurActif=nbCapteurActif-1;nbAvecParasite=nbAvecParasite-1;}
-
-    if((alertePresenceRG==true)&&(presenceAvecParasiteRG==true)){
-      alertePresenceRG=false;
-      presenceAvecParasiteRG=false;
-      nbCapteurActif=nbCapteurActif-1;nbAvecParasite=nbAvecParasite-1;}
-
-    if((alertePresenceG==true)&&(presenceAvecParasiteG==true)) {
-      alertePresenceG=false;
-      presenceAvecParasiteG=false;
-      nbCapteurActif=nbCapteurActif-1;nbAvecParasite=nbAvecParasite-1;}
-
-    if((alertePresenceAG==true)&&(presenceAvecParasiteAG==true)){
-      alertePresenceAG=false;
-      presenceAvecParasiteAG=false;
-      nbCapteurActif=nbCapteurActif-1;nbAvecParasite=nbAvecParasite-1;}
-  }
   // ***** affichage *****
   if(affichagePLP==true){
     Serial.print("   Capteurs stables : ");Serial.print(nbCapteurActif);
@@ -1202,7 +1082,7 @@ Serial.println(" V ");
 Serial.print("Appui Bouton ON ... ");
 ledWork.impulsion(1);ledWork.impulsion(0);
 
-// lecture capteurs de présence : au démarrage (même sans les 5 secondes)
+// lecture capteurs de présence : au démarrage (attente bGO et/ou tON)
 PresenceLoinPres(true);
 
 // appui Bouton (décomptage) ou Télécommande (départ direct)
@@ -1238,21 +1118,14 @@ tempsDeCombat=0;
 delay(2000);
 PresenceLoinPres(false);
   if(alertePresenceA==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
-//PresenceLoinPres(false);
   if(alertePresenceAD==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
-//PresenceLoinPres(false);
   if(alertePresenceD==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);} 
-//PresenceLoinPres(false);
   if(alertePresenceRD==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
-//PresenceLoinPres(false);
   if(alertePresenceRG==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
-//PresenceLoinPres(false);
   if(alertePresenceG==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);}
-//PresenceLoinPres(false);
   if(alertePresenceAG==true){ledWork.flashLumineux(4,1000);}else{ledWork.flashLumineux(1,1000);} 
 //while(1){;};                                                       // arrêt après 7 capteurs
 //
-
 // PREMIER MOUVEMENT - PREMIERE SECONDE
 // *** DETECTION SUSPENDUE PENDANT les TESTS ***
 //PresenceLoinPres(false);                         // lecture des 7 capteurs sans affichage
