@@ -4,20 +4,20 @@
 //  -------------------------------------------------------
 
 /* liste de courses : .......
-  calculer les vitesses en fonction de la tension et des moteurs : L = V * t
   limiter le temps de déplacement à 1/2 dohyo en vitesse M7
   calculer le décalage systématique de la vitesse des moteurs, pour aller tout droit
   vérifier la détection présence pendant décomptage des 5 secondes
   affinage du mouvement si 4 capteurs actifs (grande Bataille)
-  test de direction 1ère seconde
-  améliorer la directivité des capteurs "presence"
+  test de direction 1ère seconde : pb capteur RG
+  améliorer la directivité des capteurs "presence" : guide de rayonnement IR
   vérification des "durées" 1ère seconde
-  supprimer signal capteur lorsqu'il est bruité (limite de détection)
 */
 
 
-// 31/10/2023- modification des modes d'interruption : suppression des parasites
+// 4/11/2023 - calcul des vitesses en fonction de la tension et des moteurs : L = V * t
 
+
+// 31/10/2023- modif. interruption : suppression signal capteur si bruité (limite de détection)
 // 29/10/2023- tests 1ère seconde pb -> côté gauche sans mvt - détection bord si proche
 //             A : ok - AD : ok - D : ok - RD : ok - RG : NOK(G) - G : ->NOK(rien) - AG : ok 
 //             -> capteur RD : NOK
@@ -244,14 +244,16 @@ MOUVEMENT oldOrientation;
 enum DIRECTION{AVANT=0, AVANT_DROITE, DROITE, ARRIERE_DROITE, ARRIERE, ARRIERE_GAUCHE, GAUCHE, AVANT_GAUCHE};
 DIRECTION directionAdversaire;
 
-// vitesse des moteurs
+// vitesse des moteurs : identique moteur gauche et droit
+#define vitesseM0ref   0
+#define vitesseM1ref  27
+#define vitesseM2ref  55
+#define vitesseM3ref  82
+#define vitesseM4ref 110
+#define vitesseM5ref 137
+#define vitesseM6ref 165
+#define vitesseM7ref 180
 volatile int vitesseM0, vitesseM1, vitesseM2, vitesseM3, vitesseM4, vitesseM5, vitesseM6, vitesseM7;
-// premiere seconde
-volatile int duree1SecondeAvant, duree1SecondeAvantDroite, duree1SecondeAvantGauche, duree1SecondeDroite;
-volatile int duree1SecondeGauche, duree1SecondeArriereDroite, duree1SecondeArriereGauche, duree1SecondeArriere;
-// durée de réaction  présence
-volatile int dureeReactionAvant, dureeReactionAvantDroite, dureeReactionAvantGauche, dureeReactionDroite;
-volatile int dureeReactionGauche, dureeReactionArriereDroite, dureeReactionArriereGauche, dureeReactionArriere;
 
 // timers des mouvements
 volatile long reactionAvant, reactionAvantDroite, reactionDroite;
@@ -278,25 +280,25 @@ volatile bool alerteTension;
 volatile long debutTension;
 volatile float tensionLiPoMesuree;
 
-#define tension1SecondeRef 11.45
-#define duree1SecondeAvantRef 150
-#define duree1SecondeAvantDroiteRef 50
-#define duree1SecondeAvantGaucheRef 50
-#define duree1SecondeDroiteRef 150
-#define duree1SecondeGaucheRef 150
-#define duree1SecondeArriereDroiteRef 200
-#define duree1SecondeArriereGaucheRef 200
-#define duree1SecondeArriereRef 250
+#define tensionReference          11.45
 
-#define tensionReactionRef 11.45
-#define dureeReactionAvantRef 100
-#define dureeReactionAvantDroiteRef 50
-#define dureeReactionAvantGaucheRef 50
-#define dureeReactionDroiteRef 100
-#define dureeReactionGaucheRef 100
-#define dureeReactionArriereDroiteRef 125
-#define dureeReactionArriereGaucheRef 125
-#define dureeReactionArriereRef 150
+#define duree1SecondeAvant          150
+#define duree1SecondeAvantDroite     50
+#define duree1SecondeAvantGauche     50
+#define duree1SecondeDroite         150
+#define duree1SecondeGauche         150
+#define duree1SecondeArriereDroite  200
+#define duree1SecondeArriereGauche  200
+#define duree1SecondeArriere        250
+
+#define dureeReactionAvant          100
+#define dureeReactionAvantDroite     50
+#define dureeReactionAvantGauche     50
+#define dureeReactionDroite         100
+#define dureeReactionGauche         100
+#define dureeReactionArriereDroite  125
+#define dureeReactionArriereGauche  125
+#define dureeReactionArriere        150
 
 // capteurs "on/off" : POLOLU
 #define pin_JS40F_A  15
@@ -305,9 +307,9 @@ volatile float tensionLiPoMesuree;
 #define pin_JS40F_RD  5
 #define pin_JS40F_RG 19
 #define pin_JS40F_G  36
-#define pin_JS40F_AG 39              
-//#define latencePresence 2                                // stabilisation
+#define pin_JS40F_AG 39 
 
+//#define latencePresence 2
 volatile bool alertePresenceA, alertePresenceAD, alertePresenceD, alertePresenceRD;
 volatile bool alertePresenceRG, alertePresenceG, alertePresenceAG;
 volatile bool alertePresence, adversaireProche, lectureCapteur;
@@ -317,19 +319,17 @@ volatile int nbInterruptionA, nbInterruptionAD, nbInterruptionD, nbInterruptionR
 volatile int nbInterruptionRG, nbInterruptionG, nbInterruptionAG;
 
 // BFAF : blocage face à face
-#define attenteBlocage 3000
-#define dureeReactionBlocageRef 150
+#define attenteBlocage             3000
+#define dureeReactionBlocage        150
 volatile long debutAnalyseBlocage;
-volatile int dureeReactionBlocage;
 
-// ligne blanche
-#define dureeEsquiveBlancRef 150
-#define dureeAvantBlancRef 225
-#define dureeDerriereBlancRef 250
-volatile int dureeEsquiveBlanc, dureeAvantBlanc, dureeDerriereBlanc;
+// Ligne Blanche : durée de réaction
+#define dureeEsquiveBlanc           150
+#define dureeAvantBlanc             225
+#define dureeDerriereBlanc          250
 
-// homologation
-#define distance1metre 1750
+// Homologation : parcours 1 mètre en vitesse M3
+#define distance1metre             1750
 
 //  -------------------------------------------------------
 //  ----- INTERRUPTION sur CAPTEURS -----
@@ -502,18 +502,10 @@ void setup()
   vLiPo.setPinTension(pin_vlipo);
   tensionLiPoMesuree=vLiPo.mesureTension();
   Serial.print("tension LiPo Mesuree : "); Serial.println(tensionLiPoMesuree);
+  Serial.print("tension LiPo Reference : "); Serial.println(tensionReference);
   
 // action 1ère seconde
-  duree1SecondeAvant=int(duree1SecondeAvantRef*tension1SecondeRef/tensionLiPoMesuree);
-  duree1SecondeAvantDroite=int(duree1SecondeAvantDroiteRef*tension1SecondeRef/tensionLiPoMesuree);
-  duree1SecondeAvantGauche=int(duree1SecondeAvantGaucheRef*tension1SecondeRef/tensionLiPoMesuree);
-  duree1SecondeDroite=int(duree1SecondeDroiteRef*tension1SecondeRef/tensionLiPoMesuree);
-  duree1SecondeGauche=int(duree1SecondeGaucheRef*tension1SecondeRef/tensionLiPoMesuree);
-  duree1SecondeArriereDroite=int(duree1SecondeArriereDroiteRef*tension1SecondeRef/tensionLiPoMesuree);
-  duree1SecondeArriereGauche=int(duree1SecondeArriereGaucheRef*tension1SecondeRef/tensionLiPoMesuree);
-  duree1SecondeArriere=int(duree1SecondeArriereRef*tension1SecondeRef/tensionLiPoMesuree);
   Serial.print("duree 1ere Seconde Avant          : "); Serial.println(duree1SecondeAvant);
-  //
   Serial.print("duree 1ere Seconde Avant Droite   : "); Serial.println(duree1SecondeAvantDroite);
   Serial.print("duree 1ere Seconde Avant Gauche   : "); Serial.println(duree1SecondeAvantGauche);
   Serial.print("duree 1ere Seconde Droite         : "); Serial.println(duree1SecondeDroite);
@@ -521,18 +513,9 @@ void setup()
   Serial.print("duree 1ere Seconde Arriere Droite : "); Serial.println(duree1SecondeArriereDroite);
   Serial.print("duree 1ere Seconde Arriere Gauche : "); Serial.println(duree1SecondeArriereGauche);
   Serial.print("duree 1ere Seconde Arriere        : "); Serial.println(duree1SecondeArriere);
-  //
+
 // durée de réaction si adversaire détecté
-  dureeReactionAvant=int(dureeReactionAvantRef*tensionReactionRef/tensionLiPoMesuree);
-  dureeReactionAvantDroite=int(dureeReactionAvantDroiteRef*tensionReactionRef/tensionLiPoMesuree);
-  dureeReactionAvantGauche=int(dureeReactionAvantGaucheRef*tensionReactionRef/tensionLiPoMesuree);
-  dureeReactionDroite=int(dureeReactionDroiteRef*tensionReactionRef/tensionLiPoMesuree);
-  dureeReactionGauche=int(dureeReactionGaucheRef*tensionReactionRef/tensionLiPoMesuree);
-  dureeReactionArriereDroite=int(dureeReactionArriereDroiteRef*tensionReactionRef/tensionLiPoMesuree);
-  dureeReactionArriereGauche=int(dureeReactionArriereGaucheRef*tensionReactionRef/tensionLiPoMesuree);
-  dureeReactionArriere=int(dureeReactionArriereRef*tensionReactionRef/tensionLiPoMesuree);
   Serial.print("duree Reaction Avant          : ");Serial.println(dureeReactionAvant);
-  //
   Serial.print("duree Reaction Avant Droite   : ");Serial.println(dureeReactionAvantDroite);
   Serial.print("duree Reaction Avant Gauche   : ");Serial.println(dureeReactionAvantGauche);
   Serial.print("duree Reaction Droite         : ");Serial.println(dureeReactionDroite);
@@ -540,16 +523,33 @@ void setup()
   Serial.print("duree Reaction Arriere Droite : ");Serial.println(dureeReactionArriereDroite);
   Serial.print("duree Reaction Arriere Gauche : ");Serial.println(dureeReactionArriereGauche);
   Serial.print("duree Reaction Arriere        : ");Serial.println(dureeReactionArriere);
-  //
+
 // vitesse des moteurs      
-  vitesseM0=0;
-  vitesseM1=27;
-  vitesseM2=55;
-  vitesseM3=82;
-  vitesseM4=110;
-  vitesseM5=137;
-  vitesseM6=165;
-  vitesseM7=180;
+  vitesseM0=int(vitesseM0ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM0>0){vitesseM0=0;}
+  vitesseM1=int(vitesseM1ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM1>30){vitesseM1=30;}
+  vitesseM2=int(vitesseM2ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM2>60){vitesseM2=60;}
+  vitesseM3=int(vitesseM3ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM3>90){vitesseM3=90;}
+  vitesseM4=int(vitesseM4ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM4>120){vitesseM4=120;}
+  vitesseM5=int(vitesseM5ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM5>150){vitesseM5=150;}
+  vitesseM6=int(vitesseM6ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM6>180){vitesseM6=180;}
+  vitesseM7=int(vitesseM7ref*tensionReference/tensionLiPoMesuree);
+    if(vitesseM7>180){vitesseM7=180;}
+  //
+  Serial.print("vitesse M0 : ");Serial.println(vitesseM0);
+  Serial.print("vitesse M1 : ");Serial.println(vitesseM1);
+  Serial.print("vitesse M2 : ");Serial.println(vitesseM2);
+  Serial.print("vitesse M3 : ");Serial.println(vitesseM3);
+  Serial.print("vitesse M4 : ");Serial.println(vitesseM4);
+  Serial.print("vitesse M5 : ");Serial.println(vitesseM5);
+  Serial.print("vitesse M6 : ");Serial.println(vitesseM6);
+  Serial.print("vitesse M7 : ");Serial.println(vitesseM7);
 
 // CAPTEURS de PRESENCE
 pinMode(pin_JS40F_A, INPUT);
@@ -576,14 +576,17 @@ pinMode(pin_JS40F_AG, INPUT);
   nbInterruptionRG=0;nbInterruptionG=0;nbInterruptionAG=0;
 
 // REACTION : blocage - ligne blanche
+/*
   dureeReactionBlocage=dureeReactionBlocageRef*tensionReactionRef/tensionLiPoMesuree;
-  Serial.print("duree Reaction Blocage : ");Serial.println(dureeReactionBlocage);
   dureeEsquiveBlanc=dureeEsquiveBlancRef*tensionReactionRef/tensionLiPoMesuree;
-  Serial.print("duree Esquive Blanc : ");Serial.println(dureeEsquiveBlanc);
   dureeAvantBlanc=dureeAvantBlancRef*tensionReactionRef/tensionLiPoMesuree;
-  Serial.print("duree Avant Blanc : ");Serial.println(dureeAvantBlanc);
   dureeDerriereBlanc=dureeDerriereBlancRef*tensionReactionRef/tensionLiPoMesuree;
+*/
+  Serial.print("duree Reaction Blocage : ");Serial.println(dureeReactionBlocage);
+  Serial.print("duree Esquive Blanc : ");Serial.println(dureeEsquiveBlanc);
+  Serial.print("duree Avant Blanc : ");Serial.println(dureeAvantBlanc);
   Serial.print("duree Derriere Blanc : ");Serial.println(dureeDerriereBlanc);
+  Serial.println("");
 }
 
 //  -------------------------------------------------------
